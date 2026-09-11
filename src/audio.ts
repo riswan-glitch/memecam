@@ -1,12 +1,13 @@
 export const SOUND_URLS: Record<string, string> = {
   // Emotion to sound mappings (Can be replaced with your custom audio / Supabase links)
-  happy: 'https://actions.google.com/sounds/v1/animals/monkey_chatter.ogg',       // Laughing / celebration
-  surprise: 'https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg',   // Shock boing
-  sad: 'https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg',       // Sad trombone / wobble
-  angry: 'https://actions.google.com/sounds/v1/cartoon/slide_whistle.ogg',       // Angry siren / whistle
-  fear: 'https://actions.google.com/sounds/v1/animals/dog_bark.ogg',             // Alarm / bark
-  disgust: 'https://actions.google.com/sounds/v1/animals/cat_meow.ogg'           // Ew / meow
+  happy: 'https://lwcutqhkquyyghxygoyy.supabase.co/storage/v1/object/public/sound/happy/Albuthadweep%20laugh.mp3',       // Laughing / celebration
+  surprise: 'https://lwcutqhkquyyghxygoyy.supabase.co/storage/v1/object/public/sound/Surprised/Entho%20varan%20ponu.mp3',   // Shock boing
+  sad: 'https://lwcutqhkquyyghxygoyy.supabase.co/storage/v1/object/public/sound/Sad/Apamanam.mp3',       // Sad trombone / wobble
+  angry: 'https://lwcutqhkquyyghxygoyy.supabase.co/storage/v1/object/public/sound/Angry/Chavitti%20kootti.mp3',       // Angry siren / whistle
+  fear: 'https://lwcutqhkquyyghxygoyy.supabase.co/storage/v1/object/public/sound/all%20in%20one/Jangooo.mp3',             // Alarm / bark
+  disgust: 'https://lwcutqhkquyyghxygoyy.supabase.co/storage/v1/object/public/sound/all%20in%20one/Nee%20evidunna%20vanne%20marabhoothame.mp3'           // Ew / meow
 };
+
 
 type EmotionState = 'inactive' | 'active';
 
