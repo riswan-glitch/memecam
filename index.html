@@ -77,11 +77,13 @@
       </div>
 
 
-      <div class="space-y-2.5 font-sans text-xs">
+      <div class="space-y-1.5 font-sans text-xs">
+        <div class="text-[10px] text-gray-400 text-center mb-1 italic">Click any emotion below to test sound</div>
+
         <!-- Happy -->
-        <div class="emotion-row" data-emotion="happy">
-          <div class="flex justify-between text-gray-300 mb-1">
-            <span class="flex items-center gap-1.5"><span>😄</span> Happy</span>
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="happy" title="Click to test Happy sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>😄</span> Happy <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
             <span id="score-happy" class="font-mono text-gray-400">0%</span>
           </div>
           <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
@@ -90,9 +92,9 @@
         </div>
 
         <!-- Surprise -->
-        <div class="emotion-row" data-emotion="surprise">
-          <div class="flex justify-between text-gray-300 mb-1">
-            <span class="flex items-center gap-1.5"><span>😲</span> Surprise</span>
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="surprise" title="Click to test Surprise sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>😲</span> Surprise <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
             <span id="score-surprise" class="font-mono text-gray-400">0%</span>
           </div>
           <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
@@ -101,9 +103,9 @@
         </div>
 
         <!-- Sad -->
-        <div class="emotion-row" data-emotion="sad">
-          <div class="flex justify-between text-gray-300 mb-1">
-            <span class="flex items-center gap-1.5"><span>😢</span> Sad</span>
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="sad" title="Click to test Sad sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>😢</span> Sad <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
             <span id="score-sad" class="font-mono text-gray-400">0%</span>
           </div>
           <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
@@ -112,9 +114,9 @@
         </div>
 
         <!-- Angry -->
-        <div class="emotion-row" data-emotion="angry">
-          <div class="flex justify-between text-gray-300 mb-1">
-            <span class="flex items-center gap-1.5"><span>😡</span> Angry</span>
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="angry" title="Click to test Angry sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>😡</span> Angry <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
             <span id="score-angry" class="font-mono text-gray-400">0%</span>
           </div>
           <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
@@ -123,9 +125,9 @@
         </div>
 
         <!-- Fear -->
-        <div class="emotion-row" data-emotion="fear">
-          <div class="flex justify-between text-gray-300 mb-1">
-            <span class="flex items-center gap-1.5"><span>😨</span> Fear</span>
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="fear" title="Click to test Fear sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>😨</span> Fear <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
             <span id="score-fear" class="font-mono text-gray-400">0%</span>
           </div>
           <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
@@ -134,9 +136,9 @@
         </div>
 
         <!-- Disgust -->
-        <div class="emotion-row" data-emotion="disgust">
-          <div class="flex justify-between text-gray-300 mb-1">
-            <span class="flex items-center gap-1.5"><span>🤢</span> Disgust</span>
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="disgust" title="Click to test Disgust sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>🤢</span> Disgust <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
             <span id="score-disgust" class="font-mono text-gray-400">0%</span>
           </div>
           <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
@@ -145,7 +147,7 @@
         </div>
 
         <!-- Neutral -->
-        <div class="emotion-row" data-emotion="neutral">
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/5 transition" data-emotion="neutral">
           <div class="flex justify-between text-gray-300 mb-1">
             <span class="flex items-center gap-1.5"><span>😐</span> Neutral</span>
             <span id="score-neutral" class="font-mono text-gray-400">0%</span>
@@ -155,6 +157,7 @@
           </div>
         </div>
       </div>
+
     </div>
 
     <!-- Error Toast -->

@@ -202,9 +202,15 @@ function updateEmotionUI(results: EmotionStateResults) {
   badgeText.textContent = top;
   badgeScore.textContent = `${topScorePct}%`;
 
-  // Trigger audio if confidence is high (>= 0.55)
-  if (results.topScore >= 0.55 && top !== 'neutral') {
+  // Trigger audio if confidence is dominant (>= 0.45)
+  if (results.topScore >= 0.45 && top !== 'neutral') {
     audioEngine.updateState(top, true);
+
+    // Visual feedback: pulse active badge when audio triggers
+    activeBadge.classList.add('ring-2', 'ring-purple-400', 'scale-105');
+    setTimeout(() => {
+      activeBadge.classList.remove('ring-2', 'ring-purple-400', 'scale-105');
+    }, 450);
 
     // Deactivate all others
     for (const key of EMOTION_KEYS) {
@@ -361,3 +367,22 @@ startBtn.addEventListener('click', () => launchApp(false));
 if (demoBtn) {
   demoBtn.addEventListener('click', () => launchApp(true));
 }
+
+// Allow clicking emotion rows in HUD to manually test and preview sound clips
+document.querySelectorAll('.emotion-row').forEach((row) => {
+  row.addEventListener('click', () => {
+    const emotion = (row as HTMLElement).dataset.emotion;
+    if (emotion && emotion !== 'neutral') {
+      // Ensure audio engine is initialized on this click gesture
+      audioEngine.init();
+      audioEngine.playAudio(emotion);
+
+      // Brief flash feedback
+      row.classList.add('bg-purple-500/30');
+      setTimeout(() => {
+        row.classList.remove('bg-purple-500/30');
+      }, 300);
+    }
+  });
+});
+
