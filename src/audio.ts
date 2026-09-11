@@ -60,10 +60,20 @@ export class AudioEngine {
     const trigger = this.triggers[emotionId];
     if (!trigger) return;
 
-    const audio = trigger.audioElement;
-    audio.currentTime = 0;
-    audio.play().catch(err => {
-      console.warn(`Could not play audio for ${emotionId}:`, err);
-    });
+    try {
+      // Clone audio node to allow overlapping triggers without waiting for reset
+      const audio = trigger.audioElement.cloneNode(true) as HTMLAudioElement;
+      audio.volume = 0.85;
+      audio.play().catch(() => {
+        // Fallback to original element if clone fails
+        trigger.audioElement.currentTime = 0;
+        trigger.audioElement.play().catch(() => {});
+      });
+
+    } catch (_) {
+      trigger.audioElement.currentTime = 0;
+      trigger.audioElement.play().catch(() => {});
+    }
   }
 }
+

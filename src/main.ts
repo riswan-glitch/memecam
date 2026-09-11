@@ -1,11 +1,17 @@
-import { initEmotionClassifier, detectEmotions, EmotionStateResults } from './emotions';
+import {
+  initEmotionClassifier,
+  onPredictionResult,
+  dispatchFrame,
+  isWorkerProcessing,
+  EmotionStateResults
+} from './emotions';
 import { AudioEngine } from './audio';
 import './style.css';
 
 // DOM Elements
 const video = document.getElementById('webcam-video') as HTMLVideoElement;
 const canvas = document.getElementById('output-canvas') as HTMLCanvasElement;
-const ctx = canvas.getContext('2d')!;
+const ctx = canvas.getContext('2d', { alpha: false })!;
 
 const startOverlay = document.getElementById('start-overlay') as HTMLDivElement;
 const startBtn = document.getElementById('start-btn') as HTMLButtonElement;
@@ -15,6 +21,10 @@ const progressBar = document.getElementById('progress-bar') as HTMLDivElement;
 const statusText = document.getElementById('status-text') as HTMLSpanElement;
 
 const debugPanel = document.getElementById('debug-panel') as HTMLDivElement;
+const fpsCounter = document.getElementById('fps-counter') as HTMLSpanElement;
+const latencyCounter = document.getElementById('latency-counter') as HTMLSpanElement;
+const backendBadge = document.getElementById('backend-badge') as HTMLSpanElement;
+
 const errorToast = document.getElementById('error-toast') as HTMLDivElement;
 const errorToastMsg = document.getElementById('error-toast-msg') as HTMLDivElement;
 
@@ -36,18 +46,34 @@ const EMOJI_MAP: Record<string, string> = {
 
 const EMOTION_KEYS = ['happy', 'surprise', 'sad', 'angry', 'fear', 'disgust', 'neutral'];
 
-// Off-screen canvas for high-performance 224x224 downscaled model inference
-const modelCanvas = document.createElement('canvas');
-modelCanvas.width = 224;
-modelCanvas.height = 224;
-const modelCtx = modelCanvas.getContext('2d', { willReadFrequently: true })!;
+// Fallback offscreen canvas for browsers that don't support resize options in createImageBitmap
+const fallbackCanvas = document.createElement('canvas');
+fallbackCanvas.width = 224;
+fallbackCanvas.height = 224;
+const fallbackCtx = fallbackCanvas.getContext('2d')!;
 
 // Engine State
 let isRunning = false;
-let isPredicting = false;
-let lastInferenceTime = 0;
-const INFERENCE_INTERVAL_MS = 120; // Run inference every ~120ms for smooth 60fps UI
+let isCapturing = false;
+let lastInferenceDispatch = 0;
+const INFERENCE_INTERVAL_MS = 60; // Dispatch new frame every ~60ms when worker is ready
 const audioEngine = new AudioEngine(1200); // 1.2s debounce cooldown
+
+// Performance Telemetry
+let frameCount = 0;
+let lastFpsTime = performance.now();
+
+// Register Web Worker prediction listener
+onPredictionResult((results: EmotionStateResults, latencyMs: number, backend: string) => {
+  updateEmotionUI(results);
+
+  if (latencyCounter) {
+    latencyCounter.textContent = `${latencyMs} ms`;
+  }
+  if (backendBadge) {
+    backendBadge.textContent = backend.toUpperCase();
+  }
+});
 
 /**
  * Multi-tiered resilient camera initialization.
@@ -192,6 +218,54 @@ function updateEmotionUI(results: EmotionStateResults) {
   }
 }
 
+/**
+ * Captures an undistorted, square center-crop of the current frame
+ * and transfers it to the Web Worker for zero-copy background inference.
+ */
+async function captureAndSendFrame(): Promise<void> {
+  if (isCapturing || isWorkerProcessing()) return;
+
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) return;
+
+  isCapturing = true;
+
+  try {
+    // Calculate square center-crop to prevent face stretching / distortion
+    const minDim = Math.min(vw, vh);
+    const sx = Math.floor((vw - minDim) / 2);
+    const sy = Math.floor((vh - minDim) / 2);
+
+    let bitmap: ImageBitmap;
+
+    try {
+      // Fast hardware-accelerated GPU crop and resize to 224x224
+      bitmap = await createImageBitmap(video, sx, sy, minDim, minDim, {
+        resizeWidth: 224,
+        resizeHeight: 224,
+        resizeQuality: 'low'
+      });
+    } catch {
+      // Fallback for browsers with partial createImageBitmap options support
+      fallbackCtx.drawImage(video, sx, sy, minDim, minDim, 0, 0, 224, 224);
+      bitmap = await createImageBitmap(fallbackCanvas);
+    }
+
+    // Zero-copy transfer to dedicated worker
+    dispatchFrame(bitmap);
+  } catch (err) {
+    console.warn('Frame capture error:', err);
+  } finally {
+    isCapturing = false;
+  }
+}
+
+/**
+ * 60 FPS Render Loop.
+ * Operates purely on video rendering to guarantee zero stutter or lag.
+ * Never blocked by AI inference.
+ */
 function renderLoop() {
   if (!isRunning) return;
 
@@ -200,28 +274,22 @@ function renderLoop() {
     // 1. Draw smooth real-time video frame on main canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+    // 2. Track Preview FPS
+    frameCount++;
     const now = performance.now();
+    if (now - lastFpsTime >= 1000) {
+      const fps = Math.round((frameCount * 1000) / (now - lastFpsTime));
+      if (fpsCounter) {
+        fpsCounter.textContent = `${fps} FPS`;
+      }
+      frameCount = 0;
+      lastFpsTime = now;
+    }
 
-    // 2. Throttled AI inference
-    if (!isPredicting && now - lastInferenceTime >= INFERENCE_INTERVAL_MS) {
-      isPredicting = true;
-      lastInferenceTime = now;
-
-      // Draw downscaled frame to model canvas for fast processing
-      modelCtx.drawImage(video, 0, 0, 224, 224);
-
-      detectEmotions(modelCanvas)
-        .then((results) => {
-          if (results) {
-            updateEmotionUI(results);
-          }
-        })
-        .catch((err) => {
-          console.warn('Prediction error:', err);
-        })
-        .finally(() => {
-          isPredicting = false;
-        });
+    // 3. Dispatch new frame if worker is idle and throttle interval has passed
+    if (!isWorkerProcessing() && now - lastInferenceDispatch >= INFERENCE_INTERVAL_MS) {
+      lastInferenceDispatch = now;
+      captureAndSendFrame();
     }
   }
 
@@ -257,8 +325,8 @@ async function launchApp(useDemo: boolean = false) {
       await startCamera();
     }
 
-    // 2. Load AI model
-    statusText.textContent = 'Loading AI model...';
+    // 2. Load AI model in Web Worker
+    statusText.textContent = 'Spawning AI worker & loading model...';
     progressBar.style.width = '40%';
 
     await initEmotionClassifier((pct, text) => {
@@ -269,7 +337,7 @@ async function launchApp(useDemo: boolean = false) {
     progressBar.style.width = '100%';
     statusText.textContent = 'Ready!';
 
-    // 3. Reveal UI and launch loop
+    // 3. Reveal UI and launch 60fps render loop
     setTimeout(() => {
       startOverlay.style.display = 'none';
       debugPanel.classList.remove('hidden');

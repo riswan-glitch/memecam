@@ -1,8 +1,3 @@
-import { pipeline, env } from '@huggingface/transformers';
-
-// Configuration for in-browser execution
-env.allowLocalModels = false;
-
 export interface EmotionPrediction {
   label: string;
   score: number;
@@ -14,93 +9,103 @@ export interface EmotionStateResults {
   topScore: number;
 }
 
-let classifier: any = null;
+export type PredictionListener = (
+  results: EmotionStateResults,
+  inferenceTimeMs: number,
+  backend: string
+) => void;
 
+let worker: Worker | null = null;
+let isReady = false;
+let isBusy = false;
+let predictionListener: PredictionListener | null = null;
+
+/**
+ * Initializes the AI emotion classifier inside a dedicated Web Worker.
+ * All neural network inference, downloads, and WASM/WebGPU compilation
+ * occur off the main UI thread.
+ */
 export async function initEmotionClassifier(
   progressCallback?: (progress: number, statusText: string) => void
-): Promise<any> {
-  if (classifier) return classifier;
+): Promise<void> {
+  if (isReady && worker) return;
 
-  const onProgress = (data: any) => {
-    if (progressCallback && data.status === 'progress') {
-      const pct = Math.round(data.progress || 0);
-      progressCallback(pct, `Loading AI model: ${pct}%`);
-    } else if (progressCallback && data.status === 'ready') {
-      progressCallback(100, 'AI Model ready!');
-    }
-  };
-
-  try {
-    // Try WebGPU first for maximum speed
-    classifier = await pipeline(
-      'image-classification',
-      'Xenova/facial_emotions_image_detection',
-      {
-        device: 'webgpu',
-        progress_callback: onProgress
-      }
-    );
-    return classifier;
-  } catch (webgpuErr) {
-    console.warn('WebGPU not supported or failed to initialize, falling back to WASM:', webgpuErr);
+  return new Promise<void>((resolve, reject) => {
     try {
-      // Fallback to WASM backend (CPU with SIMD)
-      classifier = await pipeline(
-        'image-classification',
-        'Xenova/facial_emotions_image_detection',
-        {
-          device: 'wasm',
-          progress_callback: onProgress
+      // Spawn ES-module Web Worker via Vite's native URL resolution
+      worker = new Worker(new URL('./worker.ts', import.meta.url), {
+        type: 'module'
+      });
+
+      worker.onmessage = (e: MessageEvent) => {
+        const data = e.data;
+
+        if (data.type === 'progress') {
+          if (progressCallback) {
+            progressCallback(data.progress, data.statusText);
+          }
+        } else if (data.type === 'ready') {
+          isReady = true;
+          isBusy = false;
+          if (progressCallback) {
+            progressCallback(100, `AI Model ready (${data.backend.toUpperCase()})!`);
+          }
+          resolve();
+        } else if (data.type === 'prediction') {
+          isBusy = false;
+          if (predictionListener && data.results) {
+            predictionListener(data.results, data.inferenceTimeMs, data.backend || 'wasm');
+          }
+        } else if (data.type === 'prediction_empty' || data.type === 'prediction_error') {
+          isBusy = false;
+        } else if (data.type === 'error') {
+          isReady = false;
+          isBusy = false;
+          reject(new Error(data.message || 'Worker initialization failed'));
         }
-      );
-      return classifier;
-    } catch (wasmErr) {
-      console.error('Failed to initialize AI model in both WebGPU and WASM:', wasmErr);
-      throw wasmErr;
+      };
+
+      worker.onerror = (err) => {
+        console.error('Worker error:', err);
+        isBusy = false;
+        reject(new Error('AI Web Worker failed to load.'));
+      };
+
+      // Instruct worker to begin model downloading and initialization
+      worker.postMessage({ type: 'init' });
+    } catch (err) {
+      reject(err);
     }
-  }
+  });
 }
 
-export async function detectEmotions(
-  source: HTMLCanvasElement | HTMLVideoElement
-): Promise<EmotionStateResults | null> {
-  if (!classifier) return null;
+/**
+ * Registers the listener for incoming emotion classifications.
+ */
+export function onPredictionResult(listener: PredictionListener): void {
+  predictionListener = listener;
+}
 
-  try {
-    const results: EmotionPrediction[] = await classifier(source);
-    if (!results || !Array.isArray(results)) return null;
+/**
+ * Checks whether the worker is currently computing an inference frame.
+ */
+export function isWorkerProcessing(): boolean {
+  return isBusy;
+}
 
-    const emotionMap: Record<string, number> = {
-      happy: 0,
-      surprise: 0,
-      sad: 0,
-      angry: 0,
-      fear: 0,
-      disgust: 0,
-      neutral: 0
-    };
-
-    let topEmotion = 'neutral';
-    let topScore = 0;
-
-    for (const item of results) {
-      const key = item.label.toLowerCase();
-      if (key in emotionMap) {
-        emotionMap[key] = item.score;
-      }
-      if (item.score > topScore) {
-        topScore = item.score;
-        topEmotion = key;
-      }
-    }
-
-    return {
-      emotions: emotionMap,
-      topEmotion,
-      topScore
-    };
-  } catch (err) {
-    console.warn('Inference error:', err);
-    return null;
+/**
+ * Dispatches an ImageBitmap to the worker for zero-copy, non-blocking inference.
+ * Drops the frame if the worker is still busy to guarantee zero queue accumulation.
+ */
+export function dispatchFrame(bitmap: ImageBitmap): boolean {
+  if (!worker || !isReady || isBusy) {
+    // If worker is busy or not ready, close bitmap immediately to free memory
+    bitmap.close();
+    return false;
   }
+
+  isBusy = true;
+  // Transfer ownership of the ImageBitmap to worker without cloning
+  worker.postMessage({ type: 'predict', bitmap }, [bitmap]);
+  return true;
 }

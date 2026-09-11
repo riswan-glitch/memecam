@@ -34,11 +34,12 @@
       </p>
 
       <!-- Progress status indicator -->
-      <div id="loading-container" class="w-72 mb-6 hidden flex flex-col items-center gap-2">
-        <div class="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden border border-white/10">
-          <div id="progress-bar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full transition-all duration-200" style="width: 0%"></div>
+      <div id="loading-container" class="w-80 mb-6 hidden flex flex-col items-center gap-2">
+        <div class="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden border border-white/10 shadow-inner">
+          <div id="progress-bar" class="bg-gradient-to-r from-purple-500 via-pink-500 to-amber-400 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
         </div>
-        <span id="status-text" class="text-xs text-gray-400 font-mono">Downloading AI model weights...</span>
+        <span id="status-text" class="text-xs text-purple-300 font-mono tracking-tight text-center">Downloading AI model...</span>
+        <span class="text-[10px] text-gray-500 text-center">First-time download (~54MB). Cached in browser for instant future launches.</span>
       </div>
 
       <div class="flex flex-col items-center gap-3">
@@ -53,12 +54,28 @@
 
     <!-- Emotion State Debug Panel -->
     <div id="debug-panel" class="absolute top-4 left-4 bg-black/70 backdrop-blur-lg p-5 rounded-2xl border border-white/10 hidden z-40 w-64 shadow-2xl transition-all">
-      <div class="flex items-center justify-between mb-3 border-b border-white/10 pb-2">
+      <div class="flex items-center justify-between mb-2 border-b border-white/10 pb-2">
         <h2 class="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
           <span class="text-base">🎭</span> Emotion AI
         </h2>
-        <span class="text-[10px] text-green-400 font-mono bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20">LIVE</span>
+        <div class="flex items-center gap-1.5">
+          <span id="backend-badge" class="text-[9px] text-purple-300 font-mono bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/30 uppercase font-semibold">AI</span>
+          <span class="text-[9px] text-green-400 font-mono bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20">LIVE</span>
+        </div>
       </div>
+
+      <!-- Real-time Performance Telemetry -->
+      <div class="flex items-center justify-between text-[10px] font-mono text-gray-400 mb-3 bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/5">
+        <div class="flex items-center gap-1">
+          <span class="text-gray-500">Preview:</span>
+          <span id="fps-counter" class="text-emerald-400 font-bold">60 FPS</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="text-gray-500">Latency:</span>
+          <span id="latency-counter" class="text-purple-300 font-bold">-- ms</span>
+        </div>
+      </div>
+
 
       <div class="space-y-2.5 font-sans text-xs">
         <!-- Happy -->
