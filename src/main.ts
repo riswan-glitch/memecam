@@ -194,35 +194,59 @@ function updateEmotionUI(results: EmotionStateResults) {
     if (barEl) barEl.style.width = `${pct}%`;
   }
 
-  // Update top badge
-  const top = results.topEmotion;
-  const topScorePct = Math.round(results.topScore * 100);
+  // 1. Find the strongest non-neutral emotion among all classes
+  const NON_NEUTRAL_EMOTIONS = ['happy', 'surprise', 'sad', 'angry', 'fear', 'disgust'];
+  let dominantEmotion = 'neutral';
+  let dominantScore = 0;
 
-  badgeEmoji.textContent = EMOJI_MAP[top] || '😐';
-  badgeText.textContent = top;
-  badgeScore.textContent = `${topScorePct}%`;
+  for (const emotion of NON_NEUTRAL_EMOTIONS) {
+    const score = results.emotions[emotion] || 0;
+    if (score > dominantScore) {
+      dominantScore = score;
+      dominantEmotion = emotion;
+    }
+  }
 
-  // Trigger audio if confidence is dominant (>= 0.45)
-  if (results.topScore >= 0.45 && top !== 'neutral') {
-    audioEngine.updateState(top, true);
+  const neutralScore = results.emotions['neutral'] || 0;
 
-    // Visual feedback: pulse active badge when audio triggers
-    activeBadge.classList.add('ring-2', 'ring-purple-400', 'scale-105');
+  // An emotion is dominating if:
+  // - It beats all other emotions and neutral with >= 25% confidence
+  // - OR it has strong expressive confidence (>= 32%) even if neutral has resting baseline
+  const isDominating = (dominantEmotion !== 'neutral') && (
+    (results.topEmotion === dominantEmotion && dominantScore >= 0.25) ||
+    (dominantScore >= 0.32 && dominantScore >= neutralScore * 0.70)
+  );
+
+  // Update top badge with dominating emotion or neutral
+  const activeEmotion = isDominating ? dominantEmotion : results.topEmotion;
+  const activeScore = isDominating ? dominantScore : results.topScore;
+  const activeScorePct = Math.round(activeScore * 100);
+
+  badgeEmoji.textContent = EMOJI_MAP[activeEmotion] || '😐';
+  badgeText.textContent = activeEmotion;
+  badgeScore.textContent = `${activeScorePct}%`;
+
+  // Catch any dominating emotion and trigger sound accordingly
+  const played = audioEngine.handleDominantEmotion(isDominating ? dominantEmotion : 'neutral', dominantScore);
+
+  if (played) {
+    // Visual feedback: pulse active badge with neon glow
+    activeBadge.classList.add('ring-4', 'ring-purple-400', 'scale-110', 'bg-purple-900/80');
     setTimeout(() => {
-      activeBadge.classList.remove('ring-2', 'ring-purple-400', 'scale-105');
+      activeBadge.classList.remove('ring-4', 'ring-purple-400', 'scale-110', 'bg-purple-900/80');
     }, 450);
 
-    // Deactivate all others
-    for (const key of EMOTION_KEYS) {
-      if (key !== top) audioEngine.updateState(key, false);
-    }
-  } else {
-    // When neutral or below threshold, deactivate all to allow cooldown reset
-    for (const key of EMOTION_KEYS) {
-      audioEngine.updateState(key, false);
+    // Highlight the dominating row in the HUD
+    const winningRow = document.querySelector(`.emotion-row[data-emotion="${dominantEmotion}"]`);
+    if (winningRow) {
+      winningRow.classList.add('bg-purple-500/40', 'scale-105');
+      setTimeout(() => {
+        winningRow.classList.remove('bg-purple-500/40', 'scale-105');
+      }, 500);
     }
   }
 }
+
 
 /**
  * Captures an undistorted, square center-crop of the current frame

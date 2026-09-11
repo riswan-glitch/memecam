@@ -21,10 +21,13 @@ export class AudioEngine {
   private audioBuffers: Record<string, AudioBuffer> = {};
   private audioCtx: AudioContext | null = null;
   private cooldownMs: number;
+  private currentDominantEmotion: string = 'neutral';
+  private lastAnySoundTime: number = 0;
 
   constructor(cooldownMs = 1200) {
     this.cooldownMs = cooldownMs;
   }
+
 
 
   /**
@@ -80,24 +83,52 @@ export class AudioEngine {
     }
   }
 
-  public updateState(emotionId: string, isActive: boolean) {
-    if (!this.triggers[emotionId]) return;
+  /**
+   * Catches any dominating emotion and plays the corresponding sound effect.
+   * Handles emotion transitions smoothly with smart debouncing.
+   */
+  public handleDominantEmotion(emotionId: string, score: number = 1.0): boolean {
+    if (!emotionId || emotionId === 'neutral') {
+      this.currentDominantEmotion = 'neutral';
+      return false;
+    }
 
     const trigger = this.triggers[emotionId];
-    const now = performance.now();
+    if (!trigger) return false;
 
+    const now = performance.now();
+    const isNewEmotion = this.currentDominantEmotion !== emotionId;
+
+    // Responsive cooldown rules:
+    // - Switching to a different dominating emotion: 600ms
+    // - Sustaining the same dominating emotion: this.cooldownMs (default 1200ms)
+    // - Minimum gap between any two sounds: 400ms
+    const minCooldown = isNewEmotion ? 600 : this.cooldownMs;
+    const timeSinceThisEmotion = now - trigger.lastTriggerTime;
+    const timeSinceAnySound = now - this.lastAnySoundTime;
+
+
+    if (timeSinceThisEmotion > minCooldown && timeSinceAnySound > 400) {
+      console.log(`[AudioEngine] Catching dominating emotion: ${emotionId} (${Math.round(score * 100)}%)`);
+      this.playAudio(emotionId);
+      trigger.lastTriggerTime = now;
+      this.lastAnySoundTime = now;
+      this.currentDominantEmotion = emotionId;
+      return true;
+    }
+
+    this.currentDominantEmotion = emotionId;
+    return false;
+  }
+
+  public updateState(emotionId: string, isActive: boolean) {
     if (isActive) {
-      // Trigger sound when transitioning from inactive to active and cooldown has elapsed
-      if (trigger.state === 'inactive' && (now - trigger.lastTriggerTime > this.cooldownMs)) {
-        this.playAudio(emotionId);
-        trigger.state = 'active';
-        trigger.lastTriggerTime = now;
-      }
-    } else {
-      // Reset state when emotion is no longer dominant
-      trigger.state = 'inactive';
+      this.handleDominantEmotion(emotionId, 1.0);
+    } else if (this.currentDominantEmotion === emotionId) {
+      this.currentDominantEmotion = 'neutral';
     }
   }
+
 
   /**
    * Plays the audio effect immediately.
