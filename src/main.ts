@@ -164,7 +164,7 @@ async function startDemoVideo(): Promise<void> {
   video.crossOrigin = 'anonymous';
   video.loop = true;
   video.muted = true;
-  
+
   // Publicly accessible royalty-free MP4 face video sample
   video.src = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
 

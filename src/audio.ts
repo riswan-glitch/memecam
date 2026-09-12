@@ -117,7 +117,7 @@ export class AudioEngine {
         return true;
       }
     }
-    
+
     // If it's the same emotion, don't replay the sound.
     return false;
   }
@@ -142,20 +142,20 @@ export class AudioEngine {
     if (this.currentAudioSource) {
       try {
         this.currentAudioSource.stop();
-      } catch (e) {}
+      } catch (e) { }
       this.currentAudioSource = null;
     }
     if (this.currentHtmlAudio) {
       try {
         this.currentHtmlAudio.pause();
         this.currentHtmlAudio.currentTime = 0;
-      } catch (e) {}
+      } catch (e) { }
       this.currentHtmlAudio = null;
     }
 
     // Ensure audio context is active
     if (this.audioCtx && this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume().catch(() => {});
+      this.audioCtx.resume().catch(() => { });
     }
 
     // Approach 1: Web Audio API (instant zero-latency RAM playback, handles overlaps cleanly)
