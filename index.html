@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MemeCam - AR Soundboard</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body class="bg-gray-950 text-white font-sans overflow-hidden w-screen h-screen m-0 p-0 relative select-none">
+    
+    <!-- Hidden video element for WebRTC -->
+    <video id="webcam-video" class="hidden" autoplay playsinline></video>
+
+    <!-- Main canvas for drawing mirrored video feed and emotion indicator overlay -->
+    <canvas id="output-canvas" class="w-full h-full object-cover transform scale-x-[-1]"></canvas>
+
+    <!-- Top Badge showing Active Emotion -->
+    <div id="active-emotion-badge" class="absolute top-6 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-md px-6 py-2 rounded-full border border-white/10 hidden z-30 transition-all">
+      <div class="flex items-center gap-3">
+        <span id="badge-emoji" class="text-2xl">😐</span>
+        <span id="badge-text" class="text-lg font-bold tracking-wide uppercase text-purple-300">Neutral</span>
+        <span id="badge-score" class="text-xs text-gray-400 bg-white/10 px-2 py-0.5 rounded-full font-mono">100%</span>
+      </div>
+    </div>
+
+    <!-- Start & Loading Overlay -->
+    <div id="start-overlay" class="absolute inset-0 bg-gray-950/85 backdrop-blur-md flex flex-col items-center justify-center z-50 p-6">
+
+      <h1 class="text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-amber-400 text-center">
+        MemeCam AI
+      </h1>
+      <p class="text-gray-300 mb-8 max-w-md text-center text-sm leading-relaxed">
+        Real-time facial emotion recognition running 100% in your browser. Make expressions to trigger comedic sound effects.
+      </p>
+
+      <!-- Progress status indicator -->
+      <div id="loading-container" class="w-80 mb-6 hidden flex flex-col items-center gap-2">
+        <div class="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden border border-white/10 shadow-inner">
+          <div id="progress-bar" class="bg-gradient-to-r from-purple-500 via-pink-500 to-amber-400 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <span id="status-text" class="text-xs text-purple-300 font-mono tracking-tight text-center">Downloading AI model...</span>
+        <span class="text-[10px] text-gray-500 text-center">First-time download (~54MB). Cached in browser for instant future launches.</span>
+      </div>
+
+      <div class="flex flex-col items-center gap-3">
+        <button id="start-btn" class="px-8 py-4 bg-gradient-to-r from-purple-500 via-pink-500 to-pink-600 hover:from-purple-400 hover:to-pink-400 text-white font-bold text-lg rounded-full shadow-lg shadow-purple-500/25 transition-all transform hover:scale-105 active:scale-95 cursor-pointer">
+          Start MemeCam
+        </button>
+        <button id="demo-btn" type="button" class="text-xs text-purple-300 hover:text-white underline transition-colors cursor-pointer py-1">
+          No camera? Test with Demo Video
+        </button>
+      </div>
+    </div>
+
+    <!-- Emotion State Debug Panel -->
+    <div id="debug-panel" class="absolute top-4 left-4 bg-black/70 backdrop-blur-lg p-5 rounded-2xl border border-white/10 hidden z-40 w-64 shadow-2xl transition-all">
+      <div class="flex items-center justify-between mb-2 border-b border-white/10 pb-2">
+        <h2 class="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+          <span class="text-base">🎭</span> Emotion AI
+        </h2>
+        <div class="flex items-center gap-1.5">
+          <span id="backend-badge" class="text-[9px] text-purple-300 font-mono bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/30 uppercase font-semibold">AI</span>
+          <span class="text-[9px] text-green-400 font-mono bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20">LIVE</span>
+        </div>
+      </div>
+
+      <!-- Real-time Performance Telemetry -->
+      <div class="flex items-center justify-between text-[10px] font-mono text-gray-400 mb-3 bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/5">
+        <div class="flex items-center gap-1">
+          <span class="text-gray-500">Preview:</span>
+          <span id="fps-counter" class="text-emerald-400 font-bold">60 FPS</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <span class="text-gray-500">Latency:</span>
+          <span id="latency-counter" class="text-purple-300 font-bold">-- ms</span>
+        </div>
+      </div>
+
+
+      <div class="space-y-1.5 font-sans text-xs">
+        <div class="text-[10px] text-gray-400 text-center mb-1 italic">Click any emotion below to test sound</div>
+
+        <!-- Happy -->
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="happy" title="Click to test Happy sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>😄</span> Happy <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
+            <span id="score-happy" class="font-mono text-gray-400">0%</span>
+          </div>
+          <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-happy" class="bg-green-400 h-full rounded-full transition-all duration-150" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Surprise -->
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="surprise" title="Click to test Surprise sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>😲</span> Surprise <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
+            <span id="score-surprise" class="font-mono text-gray-400">0%</span>
+          </div>
+          <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-surprise" class="bg-yellow-400 h-full rounded-full transition-all duration-150" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Sad -->
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="sad" title="Click to test Sad sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>😢</span> Sad <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
+            <span id="score-sad" class="font-mono text-gray-400">0%</span>
+          </div>
+          <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-sad" class="bg-blue-400 h-full rounded-full transition-all duration-150" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Angry -->
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="angry" title="Click to test Angry sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>😡</span> Angry <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
+            <span id="score-angry" class="font-mono text-gray-400">0%</span>
+          </div>
+          <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-angry" class="bg-red-400 h-full rounded-full transition-all duration-150" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Fear -->
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="fear" title="Click to test Fear sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>😨</span> Fear <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
+            <span id="score-fear" class="font-mono text-gray-400">0%</span>
+          </div>
+          <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-fear" class="bg-purple-400 h-full rounded-full transition-all duration-150" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Disgust -->
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/10 transition cursor-pointer group" data-emotion="disgust" title="Click to test Disgust sound">
+          <div class="flex justify-between text-gray-300 mb-1 group-hover:text-white">
+            <span class="flex items-center gap-1.5"><span>🤢</span> Disgust <span class="opacity-0 group-hover:opacity-100 text-[10px] text-purple-300">🔊</span></span>
+            <span id="score-disgust" class="font-mono text-gray-400">0%</span>
+          </div>
+          <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-disgust" class="bg-emerald-500 h-full rounded-full transition-all duration-150" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Neutral -->
+        <div class="emotion-row p-1.5 rounded-lg hover:bg-white/5 transition" data-emotion="neutral">
+          <div class="flex justify-between text-gray-300 mb-1">
+            <span class="flex items-center gap-1.5"><span>😐</span> Neutral</span>
+            <span id="score-neutral" class="font-mono text-gray-400">0%</span>
+          </div>
+          <div class="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-neutral" class="bg-gray-400 h-full rounded-full transition-all duration-150" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Error Toast -->
+    <div id="error-toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-red-950/90 border border-red-500/50 backdrop-blur-md text-red-200 px-6 py-4 rounded-2xl shadow-2xl opacity-0 transition-opacity pointer-events-none z-50 text-sm max-w-md text-center">
+      <div class="font-bold text-white mb-1 flex items-center justify-center gap-2">
+        <span>⚠️</span> Camera Access Error
+      </div>
+      <div id="error-toast-msg" class="text-xs text-red-300 leading-relaxed">
+        Requested device not found.
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
